@@ -1,0 +1,129 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/101/three.min.js"></script>
+    <script src="assets/js/controls/OrbitControls.js"></script>
+    <script src="assets/js/loaders/TDSLoader.js"></script>
+    <script src="https://code.createjs.com/preloadjs-0.6.2.min.js"></script>
+
+    <script>
+      // ページの読み込みを待つ
+      window.addEventListener('load', init);
+      function init() {
+        // サイズを指定
+        const windowWidth = window.innerWidth
+        const windowHeight = window.innerHeight
+        // サイズを指定
+        const width = windowWidth;
+        const height = windowHeight;
+        let rotX = 0; // 角度
+        let rotY = 0; // 角度
+        let mouseX = 0; // マウス座標
+        let mouseY = 0; // マウス座標
+
+        // レンダラーを作成
+        const renderer = new THREE.WebGLRenderer({
+          canvas: document.querySelector('#myCanvas')
+        });
+        renderer.setSize(width, height);
+        // シーンを作成
+        const scene = new THREE.Scene();
+        // カメラを作成
+        const camera = new THREE.PerspectiveCamera(90, width / height);
+        camera.position.set(0, 0, 1000);
+        // カメラコントローラーを作成
+        const controls = new THREE.OrbitControls(camera);
+        // 滑らかにカメラコントローラーを制御する
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.2;
+        // 平行光源を作成
+        const directionalLight = new THREE.DirectionalLight(0xffffff);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // 読み込むテクスチャーリスト
+        const textures = {
+          'label_mask': { id: '1', val: undefined, src: 'assets/models/3ds/cola/Maps/label_mask.jpg'},
+          'label': { id: '2', val: undefined, src: 'assets/models/3ds/cola/Maps/label.jpg'},
+          'tapa': { id: '3', val: undefined, src: 'assets/models/3ds/cola/Maps/tapa.jpg'}
+        }
+
+        let texturePromises = [], path = './'
+
+        let loader = new THREE.TextureLoader();
+
+        for (let key in textures) {
+          texturePromises.push(new Promise((resolve, reject) => {
+            const entry = textures[key]
+            loader.load(src,
+              texture => {
+                entry.val = texture;
+                if (entry.val instanceof THREE.Texture) resolve(entry);
+              },
+              xhr => {
+                console.log(key + ' ' + (xhr.loaded / xhr.total * 100) +
+                  '% loaded');
+              },
+              xhr => {
+                reject(new Error(xhr +
+                  'An error occurred loading while loading: ' +
+                  key));
+              }
+            );
+          }));
+        }
+
+        Promise.all(texturePromises).then(loadedTextures => {
+          // 3DS形式のモデルデータを読み込む
+          loader = new THREE.TDSLoader();
+          loader.setResourcePath('assets/models/3ds/cola/Maps/')
+          // 3dsファイルのパスを指定
+          loader.load('assets/models/3ds/cola/cola.3ds',  (object) => {
+            // 読み込み後に3D空間に追加
+            scene.add(object);
+        });
+
+        });
+        // 星屑を作成します (カメラの動きをわかりやすくするため)
+        createStarField();
+        function createStarField() {
+          // 形状データを作成
+          const geometry = new THREE.Geometry();
+          for (let i = 0; i < 1000; i++) {
+            geometry.vertices.push(
+              new THREE.Vector3(
+                3000 * (Math.random() - 0.5),
+                3000 * (Math.random() - 0.5),
+                3000 * (Math.random() - 0.5)
+              )
+            );
+          }
+          // マテリアルを作成
+          const material = new THREE.PointsMaterial({
+            size: 10,
+            color: 0xffffff
+          });
+          // 物体を作成
+          const mesh = new THREE.Points(geometry, material);
+          scene.add(mesh);
+        }
+
+        tick();
+        // 毎フレーム時に実行されるループイベントです
+        function tick() {
+          // マウスの位置に応じて角度を設定
+          // マウスのX座標がステージの幅の何%の位置にあるか調べてそれを360度で乗算する
+          // カメラコントローラーを更新
+          controls.update();
+
+          // レンダリング
+          renderer.render(scene, camera);
+          requestAnimationFrame(tick);
+        }
+      }
+    </script>
+</head>
+<body>
+<canvas id="myCanvas"></canvas>
+</body>
+</html>
